@@ -1,0 +1,15 @@
+valid-for-minute:
+  body: "This response will stay fresh for one minute"
+  headers:
+    cache-control: "max-age=60"
+    custom-header: "any value"
+
+private:
+  body: "This is a private response, it will not be cached by shared caches"
+  headers:
+    cache-control: "private"   
+
+no-cache:
+  body: "This response must be validated every time"
+  headers:
+    cache-control: "no-cache"    
