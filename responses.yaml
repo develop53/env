@@ -50,3 +50,69 @@ RUN python3 -m pip install requests==2.31.0
 RUN ansible-galaxy collection install kubernetes.core
 
 USER 1000    
+
+----------
+
+
+
+
+ Örnek Entegrasyon Yöntemi (PHPIPAM → CoreDNS)
+1. CoreDNS üzerinde hosts veya etcd plugin'ini etkinleştir:
+
+CoreDNS, dinamik DNS kayıtlarını aşağıdaki pluginlerle destekler:
+
+hosts: statik dosyadan yükler, reload yapılabilir.
+
+etcd: Etcd’ye bağlanıp dinamik DNS sunar.
+
+file: Statik zone dosyası (otomatik reload destekli).
+
+Örneğin basitlik açısından hosts veya file kullanmak idealdir.
+
+CoreDNS örnek konfigurasyonu (Corefile):
+example.com {
+    hosts /etc/coredns/custom.hosts {
+        reload 5s
+        fallthrough
+    }
+    forward . 8.8.8.8
+    log
+}
+Burada custom.hosts dosyası her 5 saniyede bir yenilenir.
+
+2. PHPIPAM API ile DNS kayıtlarını otomatik çekip host dosyasına yazan basit script yazılır:
+
+import requests
+import time
+
+PHPIPAM_API = "http://<phpipam-api>/api"
+TOKEN = "PHPIPAM_API_TOKEN"
+APP_ID = "<app-id>"
+SUBNET_ID = "<subnet-id>"
+
+HEADERS = {"token": TOKEN}
+
+def fetch_ips():
+    resp = requests.get(f"{PHPIPAM_API}/{APP_ID}/subnets/{SUBNET_ID}/addresses/", headers=HEADERS)
+    return resp.json()['data']
+
+def update_hosts_file():
+    ips = fetch_ips()
+    lines = []
+    for ip in ips:
+        hostname = ip.get('hostname')
+        address = ip.get('ip')
+        if hostname and address:
+            lines.append(f"{address}\t{hostname}.example.com\n")
+
+    with open("/etc/coredns/custom.hosts", "w") as f:
+        f.writelines(lines)
+    print("Hosts dosyası güncellendi.")
+
+if __name__ == "__main__":
+    while True:
+        update_hosts_file()
+        time.sleep(60)  # her dakika çalıştır
+Bu script her dakika PHPIPAM'den subnetindeki tüm IP’leri ve hostname’leri alır, CoreDNS’in hosts dosyasını günceller.
+
+CoreDNS bu dosyayı otomatik yeniden yükleyerek DNS kayıtlarını sunar.
