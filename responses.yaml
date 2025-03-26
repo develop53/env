@@ -13,3 +13,40 @@ no-cache:
   body: "This response must be validated every time"
   headers:
     cache-control: "no-cache"    
+
+
+kubernetes	28.1.0 veya 29.0.0 (stabil)
+openshift	0.13.2 (şu an güncel/stabil)
+pyyaml	6.0.1 (stabil)
+requests	2.31.0 (güncel stabil)
+urllib3	2.0.7 (requests ile uyumlu)
+ansible-core	2.15.9 veya 2.16.5
+ansible-runner	2.3.6 (güncel/stabil)
+Jinja2	3.1.3
+cryptography	41.0.7 (stabil/güvenli)
+jsonpatch	1.33
+websocket-client	1.7.0 (kubernetes modülü için)
+six	1.16.0
+certifi	2024.2.2 (SSL için önemli)
+setuptools	69.2.0 (güncel stabil)
+
+COPY pip.conf /etc/pip.conf
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install kubernetes openshift pyyaml requests
+---
+FROM quay.io/ansible/awx-ee:latest
+
+USER root
+RUN dnf install -y python3.9 python3.9-pip && \
+    alternatives --set python3 /usr/bin/python3.9 && \
+    python3 -m pip install --upgrade pip
+
+COPY pip.conf /etc/pip.conf
+
+RUN python3 -m pip install kubernetes==29.0.0
+RUN python3 -m pip install openshift==0.13.2
+RUN python3 -m pip install pyyaml==6.0.1
+RUN python3 -m pip install requests==2.31.0
+RUN ansible-galaxy collection install kubernetes.core
+
+USER 1000    
